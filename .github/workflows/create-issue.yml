@@ -36,5 +36,3 @@ jobs:
             const body = inputs.body || '';
             const labels = inputs.labels ? inputs.labels.split(',').map(l => l.trim()).filter(Boolean) : [];
             const resp = await github.rest.issues.create({ owner, repo, title, body, labels });
-            core.setOutput('issue_number', resp.data.number);
-            core.setOutput('issue_url', resp.data.html_url);
