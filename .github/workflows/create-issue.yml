@@ -5,9 +5,11 @@ on:
     inputs:
       repository:
         description: 'Owner/repo to create issue in (e.g. octocat/Hello-World)'
+        default: 'juri1212/idea-collection'
         required: true
       title:
         description: 'Issue title'
+        default: 'New Issue from GitHub Actions'
         required: true
       body:
         description: 'Issue body (optional)'
