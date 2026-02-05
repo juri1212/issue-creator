@@ -17,6 +17,9 @@ on:
       labels:
         description: 'Comma-separated labels (optional)'
         required: false
+      project_number:
+        description: 'Project number to add issue to (optional, e.g. 1 for project #1)'
+        required: false
 
 jobs:
   create_issue:
@@ -38,3 +41,73 @@ jobs:
             const body = inputs.body || '';
             const labels = inputs.labels ? inputs.labels.split(',').map(l => l.trim()).filter(Boolean) : [];
             const resp = await github.rest.issues.create({ owner, repo, title, body, labels });
+            console.log(`Issue created: #${resp.data.number}`);
+
+            // Add to project if project_number is provided
+            const projectNumber = inputs.project_number;
+            if (projectNumber) {
+              console.log(`Adding issue to project #${projectNumber}...`);
+
+              // Get issue node ID
+              const issueQuery = `
+                query($owner:String!, $repo:String!, $number:Int!) {
+                  repository(owner:$owner, name:$repo) {
+                    issue(number:$number) {
+                      id
+                    }
+                  }
+                }
+              `;
+
+              const issueResult = await github.graphql(issueQuery, {
+                owner: owner,
+                repo: repo,
+                number: resp.data.number
+              });
+              const issueId = issueResult.repository.issue.id;
+              console.log(`Issue node ID: ${issueId}`);
+
+              // Get project node ID by project number
+              const projectQuery = `
+                query($owner:String!, $repo:String!, $number:Int!) {
+                  repository(owner:$owner, name:$repo) {
+                    projectV2(number:$number) {
+                      id
+                      title
+                    }
+                  }
+                }
+              `;
+
+              const projectResult = await github.graphql(projectQuery, {
+                owner: owner,
+                repo: repo,
+                number: parseInt(projectNumber)
+              });
+
+              if (!projectResult.repository.projectV2) {
+                throw new Error(`Project #${projectNumber} not found in ${owner}/${repo}`);
+              }
+
+              const projectId = projectResult.repository.projectV2.id;
+              const projectTitle = projectResult.repository.projectV2.title;
+              console.log(`Project found: ${projectTitle} (${projectId})`);
+
+              // Add issue to project
+              const addMutation = `
+                mutation($projectId:ID!, $contentId:ID!) {
+                  addProjectV2ItemById(input: {projectId:$projectId, contentId:$contentId}) {
+                    item {
+                      id
+                    }
+                  }
+                }
+              `;
+
+              const addResult = await github.graphql(addMutation, {
+                projectId: projectId,
+                contentId: issueId
+              });
+
+              console.log(`Successfully added issue to project. Item ID: ${addResult.addProjectV2ItemById.item.id}`);
+            }
