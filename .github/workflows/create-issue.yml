@@ -25,7 +25,7 @@ jobs:
       - name: Create issue via GitHub API
         uses: actions/github-script@v8
         with:
-          github-token: ${{ secrets.GH_TOKEN }}
+          github-token: ${{ startsWith(github.event.inputs.repository, format('{0}/', github.repository_owner)) && secrets.GH_TOKEN || secrets.GH_TOKEN_2 }}
           script: |
             const inputs = context.payload.inputs || {};
             const repoInput = inputs.repository;
